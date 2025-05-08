@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /core
+    # volumes:
+    #   - ./core:/core/app
+    #   - ./.venv:/core/.venv
+    ports:
+      - "8000:8000"
+    environment:
+      - UV_RELOAD=1
+    command: uv run fastapi run app/main.py --port 8000 --host 0.0.0.0 --reload
