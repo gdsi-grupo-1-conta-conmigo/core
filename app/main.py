@@ -1,11 +1,20 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from .routers import authentication
+
 # Create the FastAPI app instance
 app = FastAPI(
     title="My FastAPI App",
-    description="A base FastAPI application.",
+    description="A base FastAPI application with authentication.",
     version="0.1.0"
+)
+
+# Include routers
+app.include_router(
+    authentication.router,
+    prefix="/auth",
+    tags=["Authentication"]
 )
 
 # Root endpoint
@@ -18,6 +27,7 @@ async def read_root():
 async def health_check():
     return {"status": "ok"}
 
-# You can add more routers or include APIRouters here
-# from .routers import users
+# You can add more routers here
+# from .routers import users, items
 # app.include_router(users.router)
+# app.include_router(items.router)
