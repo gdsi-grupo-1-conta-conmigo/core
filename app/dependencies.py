@@ -20,3 +20,10 @@ def get_supabase_client() -> Client:
     if supabase is None:
         raise RuntimeError("Supabase client is not initialized. Check your environment variables.")
     return supabase
+
+def get_current_user(supabase: Client = get_supabase_client()) -> dict:
+    """Get the current authenticated user"""
+    user = supabase.auth.get_user()
+    if user.error:
+        raise RuntimeError(f"Error fetching current user: {user.error.message}")
+    return user.user if user.user else {}
