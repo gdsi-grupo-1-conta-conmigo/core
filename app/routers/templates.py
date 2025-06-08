@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from supabase import Client
 from uuid import uuid4
@@ -93,6 +93,49 @@ async def get_template_details(
             "name": result.data["name"],
             "fields": result.data["fields"]
         }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/templates/{template_id}")
+async def delete_template(
+    template_id: str,
+    force: bool = Query(False, description="Eliminar también si hay datos asociados"),
+    supabase: Client = Depends(get_supabase_client),
+    current_user: dict = Depends(get_current_user)
+):
+    """Eliminar un template (con confirmación si hay datos asociados)"""
+    try:
+        user_id = current_user.get("id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no válido")
+
+        # Verificar si el template existe y pertenece al usuario
+        result = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
+        if result.error:
+            raise HTTPException(status_code=404, detail="Template no encontrado o no autorizado")
+
+        # Verificar si hay datos asociados al template
+        data_check = supabase.table("template_data").select("id").eq("template_id", template_id).limit(1).execute()
+        if data_check.data and not force:
+            raise HTTPException(
+                status_code=400,
+                detail="Este template tiene datos asociados. Usa 'force=true' para eliminarlo junto con los datos."
+            )
+
+        # Eliminar datos asociados (si existen y se confirma con `force`)
+        if data_check.data and force:
+            delete_data = supabase.table("template_data").delete().eq("template_id", template_id).execute()
+            if delete_data.error:
+                raise HTTPException(status_code=500, detail="Error al eliminar los datos asociados")
+
+        # Eliminar el template
+        delete_template = supabase.table("templates").delete().eq("id", template_id).execute()
+        if delete_template.error:
+            raise HTTPException(status_code=500, detail="Error al eliminar el template")
+
+        return {"message": "Template eliminado correctamente"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
