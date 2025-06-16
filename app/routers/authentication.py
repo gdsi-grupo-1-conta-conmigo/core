@@ -19,6 +19,9 @@ class LogInResponse(BaseModel):
     access_token: str
     refresh_token: str | None = None
 
+class LogOutResponse(BaseModel):
+    message: str
+
 @router.post("/signup", response_model=SignUpResponse)
 async def signup(credentials: UserCredentials, supabase: Client = Depends(get_supabase_client)):
     """Create a new user account"""
@@ -57,5 +60,16 @@ async def login(credentials: UserCredentials, supabase: Client = Depends(get_sup
             raise HTTPException(status_code=401, detail=response.error.message or "Invalid login credentials")
         else:
             raise HTTPException(status_code=500, detail="Unknown error during login or no session returned")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/logout", response_model=LogOutResponse)
+async def logout(supabase: Client = Depends(get_supabase_client)):
+    """Log out the current user"""
+    try:
+        response = supabase.auth.sign_out()
+        if response.error:
+            raise HTTPException(status_code=400, detail=response.error.message)
+        return {"message": "Logout successful"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
