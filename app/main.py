@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from .routers import authentication
+from .routers import authentication, templates
 
 # Create the FastAPI app instance
 app = FastAPI(
@@ -15,6 +15,12 @@ app.include_router(
     authentication.router,
     prefix="/auth",
     tags=["Authentication"]
+)
+
+app.include_router(
+    templates.router,
+    prefix="/templates",
+    tags=["Templates"]
 )
 
 # Root endpoint
