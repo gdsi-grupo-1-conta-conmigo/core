@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from supabase import Client
 from uuid import uuid4
 from ..dependencies import get_supabase_client, get_current_user
+from typing import Dict, Any  # Añade esto al inicio del archivo
 
 router = APIRouter()
 
@@ -21,24 +22,23 @@ class TemplateCreate(BaseModel):
 async def create_template(
     template: TemplateCreate,
     supabase: Client = Depends(get_supabase_client),
-    current_user = Depends(get_current_user)  # Obtén el usuario autenticado
-):
+    current_user:dict = Depends(get_current_user)
+) -> dict[str, Any]:
     """Crear un nuevo template dinámico"""
     try:
         # Generamos un ID único para el template
         template_id = str(uuid4())
-        user_id = current_user.get("id")  # Obtenemos el ID del usuario autenticado
+        user_id = current_user
         
-        # Guardamos el template en la base de datos de Supabase
-        result = supabase.table("templates").insert({
+        result: Any = supabase.table("templates").insert({
             "id": template_id,
             "name": template.name,
             "user_id": user_id,  # Asociamos el template con el usuario
             "fields": [field.dict() for field in template.fields]  # Guardamos los campos como JSON
         }).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
+        # if result.error:
+        #     raise HTTPException(status_code=400, detail=result.error.message)
 
         return {
             "message": "Template creado exitosamente",
@@ -55,15 +55,15 @@ async def list_templates(
 ):
     """Listar todos los templates del usuario autenticado"""
     try:
-        user_id = current_user.get("id")
+        user_id = current_user
         if not user_id:
             raise HTTPException(status_code=400, detail="Usuario no válido")
 
         # Buscar templates por user_id
         result = supabase.table("templates").select("*").eq("user_id", user_id).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
+        # if result.error:
+        #     raise HTTPException(status_code=400, detail=result.error.message)
 
         return {"templates": result.data}
 
@@ -78,15 +78,15 @@ async def get_template_details(
 ):
     """Obtener detalles de un template específico por su ID"""
     try:
-        user_id = current_user.get("id")
+        user_id = current_user
         if not user_id:
             raise HTTPException(status_code=401, detail="Usuario no válido")
 
         # Buscar el template por ID y asegurar que pertenece al usuario autenticado
         result = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
 
-        if result.error:
-            raise HTTPException(status_code=404, detail="Template no encontrado o no pertenece al usuario")
+        # if result.error:
+        #     raise HTTPException(status_code=404, detail="Template no encontrado o no pertenece al usuario")
 
         return {
             "template_id": result.data["id"],
@@ -103,39 +103,38 @@ async def delete_template(
     template_id: str,
     force: bool = Query(False, description="Eliminar también si hay datos asociados"),
     supabase: Client = Depends(get_supabase_client),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Eliminar un template (con confirmación si hay datos asociados)"""
     try:
-        user_id = current_user.get("id")
+        user_id = current_user
         if not user_id:
             raise HTTPException(status_code=401, detail="Usuario no válido")
 
         # Verificar si el template existe y pertenece al usuario
-        result = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
-        if result.error:
-            raise HTTPException(status_code=404, detail="Template no encontrado o no autorizado")
+        result: Any = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
+        if not result:
+             raise HTTPException(status_code=404, detail="Template no encontrado o no autorizado")
 
-        # Verificar si hay datos asociados al template
-        data_check = supabase.table("template_data").select("id").eq("template_id", template_id).limit(1).execute()
-        if data_check.data and not force:
-            raise HTTPException(
-                status_code=400,
-                detail="Este template tiene datos asociados. Usa 'force=true' para eliminarlo junto con los datos."
-            )
+        data_check = supabase.table("templates").select("id").eq("id", template_id).limit(1).execute()
 
-        # Eliminar datos asociados (si existen y se confirma con `force`)
-        if data_check.data and force:
-            delete_data = supabase.table("template_data").delete().eq("template_id", template_id).execute()
-            if delete_data.error:
+        if data_check.data:
+            print("122")
+            delete_data: Any = supabase.table("templates").delete().eq("id", template_id).execute()
+            if not delete_data:
                 raise HTTPException(status_code=500, detail="Error al eliminar los datos asociados")
+            print("125")
+        print("126")
 
         # Eliminar el template
-        delete_template = supabase.table("templates").delete().eq("id", template_id).execute()
-        if delete_template.error:
+        delete_template: Any = supabase.table("templates").delete().eq("id", template_id).execute()
+        print("131")
+        if not delete_template:
             raise HTTPException(status_code=500, detail="Error al eliminar el template")
 
         return {"message": "Template eliminado correctamente"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+

@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from supabase import Client
+from typing import  Any
 
-from ..dependencies import get_supabase_client
+from app.dependencies import get_supabase_client
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ class LogInResponse(BaseModel):
 async def signup(credentials: UserCredentials, supabase: Client = Depends(get_supabase_client)):
     """Create a new user account"""
     try:
-        user_response = supabase.auth.sign_up({
+        user_response: Any = supabase.auth.sign_up({
             "email": credentials.email,
             "password": credentials.password,
         })
@@ -43,7 +44,7 @@ async def signup(credentials: UserCredentials, supabase: Client = Depends(get_su
 async def login(credentials: UserCredentials, supabase: Client = Depends(get_supabase_client)):
     """Authenticate user and return access token"""
     try:
-        response = supabase.auth.sign_in_with_password({
+        response: Any = supabase.auth.sign_in_with_password({
             "email": credentials.email,
             "password": credentials.password
         })
@@ -59,3 +60,5 @@ async def login(credentials: UserCredentials, supabase: Client = Depends(get_sup
             raise HTTPException(status_code=500, detail="Unknown error during login or no session returned")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
