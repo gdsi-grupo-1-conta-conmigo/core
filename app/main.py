@@ -17,6 +17,12 @@ app.include_router(
     tags=["Authentication"]
 )
 
+app.include_router(
+    templates.router,
+    prefix="/templates",
+    tags=["Templates"]
+)
+
 # Root endpoint
 @app.get("/", response_class=JSONResponse)
 async def read_root():

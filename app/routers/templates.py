@@ -17,7 +17,7 @@ class TemplateCreate(BaseModel):
     name: str         # Nombre del template (e.g., "Agua Tomada")
     fields: list[Field]  # Lista de campos definidos por el usuario
 
-@router.post("/templates")
+@router.post("/")
 async def create_template(
     template: TemplateCreate,
     supabase: Client = Depends(get_supabase_client),
@@ -48,7 +48,7 @@ async def create_template(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/templates")
+@router.get("/")
 async def list_templates(
     supabase: Client = Depends(get_supabase_client),
     current_user: dict = Depends(get_current_user)
@@ -70,7 +70,7 @@ async def list_templates(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/templates/{template_id}")
+@router.get("/{template_id}")
 async def get_template_details(
     template_id: str,
     supabase: Client = Depends(get_supabase_client),
@@ -98,7 +98,7 @@ async def get_template_details(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/templates/{template_id}")
+@router.delete("/{template_id}")
 async def delete_template(
     template_id: str,
     force: bool = Query(False, description="Eliminar también si hay datos asociados"),
