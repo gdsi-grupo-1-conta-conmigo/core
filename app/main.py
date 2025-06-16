@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from .routers import authentication
+from .routers import authentication, templates
 
 # Create the FastAPI app instance
 app = FastAPI(
