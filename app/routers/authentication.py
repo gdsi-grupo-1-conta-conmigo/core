@@ -77,15 +77,3 @@ async def logout(supabase: Client = Depends(get_supabase_client)):
         return {"message": "Logout successful"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/me")
-async def get_current_user_info(supabase: Client = Depends(get_supabase_client)):
-    """Get current authenticated user information"""
-    try:
-        # This endpoint will be protected by the middleware and dependency injection
-        return {
-            "message": "User authentication endpoint",
-            "note": "Use this with Authorization: Bearer <token> header"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

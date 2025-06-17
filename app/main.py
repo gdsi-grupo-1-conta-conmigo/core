@@ -1,24 +1,20 @@
-import os
 from dotenv import load_dotenv
-import base64
 
 # Load environment variables from .env file
 load_dotenv()
 
-from fastapi import FastAPI, Request, HTTPException, status, Depends
+from fastapi import FastAPI, status, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
-from jwt.exceptions import InvalidTokenError
 
 from .routers import authentication, templates, template_data
 from .dependencies import auth
 
 # Create the FastAPI app instance
 app = FastAPI(
-    title="My FastAPI App",
-    description="A FastAPI application with Supabase authentication.",
-    version="0.1.0"
+    title="Conta Conmigo Core API",
+    description="API for the Conta Conmigo platform",
+    version="1.0.0"
 )
 
 # Configure CORS
@@ -40,14 +36,14 @@ app.include_router(
 # Include protected routers with authentication dependency
 app.include_router(
     templates.router,
-    prefix="/api/templates",
+    prefix="/templates",
     tags=["Templates"],
     dependencies=[Depends(auth)]
 )
 
 app.include_router(
     template_data.router,
-    prefix="/api/templates",
+    prefix="/templates",
     tags=["Template Data"],
     dependencies=[Depends(auth)]
 )
