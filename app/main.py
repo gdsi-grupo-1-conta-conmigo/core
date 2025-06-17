@@ -13,7 +13,7 @@ import time
 import jwt
 from jwt.exceptions import InvalidTokenError
 
-from .routers import authentication, templates
+from .routers import authentication, templates, template_data
 from .auth_middleware import AuthMiddleware
 
 # Create the FastAPI app instance
@@ -55,6 +55,13 @@ authenticated_app.include_router(
     templates.router,
     prefix="/templates",
     tags=["Templates"]
+)
+
+# Mount the template data router with middleware
+authenticated_app.include_router(
+    template_data.router,
+    prefix="/templates",  # We use the same prefix to nest under templates
+    tags=["Template Data"]
 )
 
 app.mount("/api", authenticated_app)
