@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from pydantic import BaseModel
 from supabase import Client
 from uuid import uuid4
-from ..dependencies import get_supabase_client, get_current_user
+from ..dependencies import get_supabase_client
+from ..auth_middleware import UserClaims
 
 router = APIRouter()
 
@@ -19,26 +20,30 @@ class TemplateCreate(BaseModel):
 
 @router.post("/")
 async def create_template(
+    request: Request,
     template: TemplateCreate,
     supabase: Client = Depends(get_supabase_client),
-    current_user = Depends(get_current_user)  # Obtén el usuario autenticado
 ):
     """Crear un nuevo template dinámico"""
     try:
+        # Get user claims from request state
+        user_claims: UserClaims = request.state.user
+        user_id = user_claims.sub  # Use the sub claim as the user ID
+
         # Generamos un ID único para el template
         template_id = str(uuid4())
-        user_id = current_user.get("id")  # Obtenemos el ID del usuario autenticado
-        
+
         # Guardamos el template en la base de datos de Supabase
         result = supabase.table("templates").insert({
             "id": template_id,
             "name": template.name,
             "user_id": user_id,  # Asociamos el template con el usuario
-            "fields": [field.dict() for field in template.fields]  # Guardamos los campos como JSON
+            "fields": [field.model_dump() for field in template.fields]  # Guardamos los campos como JSON
         }).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
+        # Check if the operation was successful by checking if data was returned
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Failed to create template")
 
         return {
             "message": "Template creado exitosamente",
@@ -50,42 +55,42 @@ async def create_template(
 
 @router.get("/")
 async def list_templates(
+    request: Request,
     supabase: Client = Depends(get_supabase_client),
-    current_user: dict = Depends(get_current_user)
 ):
     """Listar todos los templates del usuario autenticado"""
     try:
-        user_id = current_user.get("id")
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Usuario no válido")
+        user_claims: UserClaims = request.state.user
+        user_id = user_claims.sub
 
         # Buscar templates por user_id
         result = supabase.table("templates").select("*").eq("user_id", user_id).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
+        # Check if the operation was successful
+        if result.data is None:
+            raise HTTPException(status_code=400, detail="Failed to fetch templates")
 
         return {"templates": result.data}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @router.get("/{template_id}")
 async def get_template_details(
+    request: Request,
     template_id: str,
     supabase: Client = Depends(get_supabase_client),
-    current_user: dict = Depends(get_current_user)
 ):
     """Obtener detalles de un template específico por su ID"""
     try:
-        user_id = current_user.get("id")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Usuario no válido")
+        user_claims: UserClaims = request.state.user
+        user_id = user_claims.sub
 
         # Buscar el template por ID y asegurar que pertenece al usuario autenticado
         result = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
 
-        if result.error:
+        # Check if template was found
+        if not result.data:
             raise HTTPException(status_code=404, detail="Template no encontrado o no pertenece al usuario")
 
         return {
@@ -100,20 +105,19 @@ async def get_template_details(
 
 @router.delete("/{template_id}")
 async def delete_template(
+    request: Request,
     template_id: str,
     force: bool = Query(False, description="Eliminar también si hay datos asociados"),
     supabase: Client = Depends(get_supabase_client),
-    current_user: dict = Depends(get_current_user)
 ):
     """Eliminar un template (con confirmación si hay datos asociados)"""
     try:
-        user_id = current_user.get("id")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Usuario no válido")
+        user_claims: UserClaims = request.state.user
+        user_id = user_claims.sub
 
         # Verificar si el template existe y pertenece al usuario
         result = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
-        if result.error:
+        if not result.data:
             raise HTTPException(status_code=404, detail="Template no encontrado o no autorizado")
 
         # Verificar si hay datos asociados al template
@@ -127,12 +131,12 @@ async def delete_template(
         # Eliminar datos asociados (si existen y se confirma con `force`)
         if data_check.data and force:
             delete_data = supabase.table("template_data").delete().eq("template_id", template_id).execute()
-            if delete_data.error:
+            if not delete_data.data:
                 raise HTTPException(status_code=500, detail="Error al eliminar los datos asociados")
 
         # Eliminar el template
         delete_template = supabase.table("templates").delete().eq("id", template_id).execute()
-        if delete_template.error:
+        if not delete_template.data:
             raise HTTPException(status_code=500, detail="Error al eliminar el template")
 
         return {"message": "Template eliminado correctamente"}

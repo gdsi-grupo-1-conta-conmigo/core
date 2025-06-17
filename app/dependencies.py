@@ -1,3 +1,7 @@
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional
+from pydantic import BaseModel
 import os
 from supabase import create_client, Client
 
@@ -17,13 +21,4 @@ except Exception as e:
 
 def get_supabase_client() -> Client:
     """Dependency to get Supabase client instance"""
-    if supabase is None:
-        raise RuntimeError("Supabase client is not initialized. Check your environment variables.")
     return supabase
-
-def get_current_user(supabase: Client = get_supabase_client()) -> dict:
-    """Get the current authenticated user"""
-    user = supabase.auth.get_user()
-    if user.error:
-        raise RuntimeError(f"Error fetching current user: {user.error.message}")
-    return user.user if user.user else {}
