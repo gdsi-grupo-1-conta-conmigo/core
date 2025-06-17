@@ -5,16 +5,14 @@ import base64
 # Load environment variables from .env file
 load_dotenv()
 
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
-import time
-import jwt
 from jwt.exceptions import InvalidTokenError
 
 from .routers import authentication, templates, template_data
-from .auth_middleware import AuthMiddleware
+from .dependencies import auth
 
 # Create the FastAPI app instance
 app = FastAPI(
@@ -32,39 +30,27 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Include routers
+# Include authentication router (no auth required)
 app.include_router(
     authentication.router,
     prefix="/auth",
     tags=["Authentication"]
 )
 
-# Create a sub-application for templates with middleware
-authenticated_app = FastAPI()
-authenticated_app.add_middleware(AuthMiddleware)
-authenticated_app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Mount the templates router with middleware
-authenticated_app.include_router(
+# Include protected routers with authentication dependency
+app.include_router(
     templates.router,
-    prefix="/templates",
-    tags=["Templates"]
+    prefix="/api/templates",
+    tags=["Templates"],
+    dependencies=[Depends(auth)]
 )
 
-# Mount the template data router with middleware
-authenticated_app.include_router(
+app.include_router(
     template_data.router,
-    prefix="/templates",  # We use the same prefix to nest under templates
-    tags=["Template Data"]
+    prefix="/api/templates",
+    tags=["Template Data"],
+    dependencies=[Depends(auth)]
 )
-
-app.mount("/api", authenticated_app)
 
 # Health check endpoint
 @app.get("/health", response_class=JSONResponse, tags=["Health"])

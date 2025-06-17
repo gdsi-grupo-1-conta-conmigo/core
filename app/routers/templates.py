@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Field as PydanticField
 from supabase import Client
 from uuid import uuid4
-from ..dependencies import get_supabase_client
-from ..auth_middleware import UserClaims
-from typing import Literal
+from ..dependencies import get_supabase_client, auth, UserClaims
+from typing import Literal, Dict, Any
+from datetime import datetime
 
 router = APIRouter()
 
@@ -21,17 +21,13 @@ class TemplateCreate(BaseModel):
 
 @router.post("/")
 async def create_template(
-    request: Request,
     template: TemplateCreate,
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """Crear un nuevo template dinámico"""
     try:
-        # Get user claims from request state
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub  # Use the sub claim as the user ID
-
-
 
         # Guardamos el template en la base de datos de Supabase
         result = supabase.table("templates").insert({
@@ -54,12 +50,11 @@ async def create_template(
 
 @router.get("/")
 async def list_templates(
-    request: Request,
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """Listar todos los templates del usuario autenticado"""
     try:
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub
 
         # Buscar templates por user_id
@@ -76,13 +71,12 @@ async def list_templates(
 
 @router.get("/{template_id}")
 async def get_template_details(
-    request: Request,
     template_id: str,
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """Obtener detalles de un template específico por su ID"""
     try:
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub
 
         # Buscar el template por ID y asegurar que pertenece al usuario autenticado
@@ -104,14 +98,13 @@ async def get_template_details(
 
 @router.delete("/{template_id}")
 async def delete_template(
-    request: Request,
     template_id: str,
     force: bool = Query(False, description="Eliminar también si hay datos asociados"),
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """Eliminar un template (con confirmación si hay datos asociados)"""
     try:
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub
 
         # Verificar si el template existe y pertenece al usuario

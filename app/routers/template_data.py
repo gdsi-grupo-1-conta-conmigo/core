@@ -4,8 +4,7 @@ from typing import Any, Dict
 from supabase import Client
 from uuid import uuid4
 from datetime import datetime
-from ..dependencies import get_supabase_client
-from ..auth_middleware import UserClaims
+from ..dependencies import get_supabase_client, auth, UserClaims
 
 router = APIRouter()
 
@@ -45,14 +44,13 @@ def validate_field_value(field_type: str, value: Any) -> bool:
 
 @router.post("/{template_id}/data")
 async def create_template_data(
-    request: Request,
     template_id: str,
     data: TemplateDataCreate,
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """Create a new data entry for a template"""
     try:
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub
 
         # Verify template exists and belongs to user
@@ -106,13 +104,12 @@ async def create_template_data(
 
 @router.get("/{template_id}/data")
 async def list_template_data(
-    request: Request,
     template_id: str,
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """List all data entries for a specific template"""
     try:
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub
 
         # Verify template exists and belongs to user
@@ -133,14 +130,13 @@ async def list_template_data(
 
 @router.get("/{template_id}/data/{data_id}")
 async def get_template_data(
-    request: Request,
     template_id: str,
     data_id: str,
+    user_claims: UserClaims = Depends(auth),
     supabase: Client = Depends(get_supabase_client),
 ):
     """Get a specific data entry for a template"""
     try:
-        user_claims: UserClaims = request.state.user
         user_id = user_claims.sub
 
         # Get the specific data entry
