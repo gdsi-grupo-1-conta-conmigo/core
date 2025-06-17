@@ -1,16 +1,17 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from supabase import Client
 from uuid import uuid4
 from ..dependencies import get_supabase_client
 from ..auth_middleware import UserClaims
+from typing import Literal
 
 router = APIRouter()
 
 # Definimos el modelo para los campos del template
 class Field(BaseModel):
     name: str         # Nombre del campo (e.g., "marca", "volumen")
-    type: str         # Tipo de dato (string, int, etc.)
+    type: Literal["string", "int", "float", "boolean", "date"]  # Tipo de dato restringido
     display_unit: str | None = None  # Unidad de visualización (e.g., "ml", "km")
 
 # Definimos el modelo para el template
@@ -30,12 +31,10 @@ async def create_template(
         user_claims: UserClaims = request.state.user
         user_id = user_claims.sub  # Use the sub claim as the user ID
 
-        # Generamos un ID único para el template
-        template_id = str(uuid4())
+
 
         # Guardamos el template en la base de datos de Supabase
         result = supabase.table("templates").insert({
-            "id": template_id,
             "name": template.name,
             "user_id": user_id,  # Asociamos el template con el usuario
             "fields": [field.model_dump() for field in template.fields]  # Guardamos los campos como JSON
@@ -47,7 +46,7 @@ async def create_template(
 
         return {
             "message": "Template creado exitosamente",
-            "template_id": template_id
+            "template_id": result.data[0]["id"]
         }
 
     except Exception as e:
