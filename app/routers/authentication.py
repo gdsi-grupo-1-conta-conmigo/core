@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from supabase import Client
 
 from ..dependencies import get_supabase_client
@@ -22,6 +22,13 @@ class LogInResponse(BaseModel):
 
 class LogOutResponse(BaseModel):
     message: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    access_token: str
+    new_password: str
 
 @router.post("/signup", response_model=SignUpResponse)
 async def signup(credentials: UserCredentials, supabase: Client = Depends(get_supabase_client)):
@@ -75,5 +82,47 @@ async def logout(supabase: Client = Depends(get_supabase_client)):
     try:
         response = supabase.auth.sign_out()
         return {"message": "Logout successful"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    supabase: Client = Depends(get_supabase_client),
+):
+    """
+    Envía un correo con un enlace para restablecer la contraseña.
+    """
+    try:
+        response = supabase.auth.reset_password_email(request.email)
+
+        if "error" in response and response["error"]:
+            raise HTTPException(status_code=400, detail=response["error"]["message"])
+
+        return {"message": "Se envió un correo con instrucciones para restablecer tu contraseña."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    supabase: Client = Depends(get_supabase_client),
+):
+    """
+    Cambia la contraseña usando el access_token enviado por Supabase en el correo.
+    """
+    try:
+        # 1. Establecer la sesión con el access_token
+        supabase.auth.set_session(request.access_token, None)
+
+        # 2. Cambiar la contraseña del usuario autenticado
+        response = supabase.auth.update_user({"password": request.new_password})
+
+        if hasattr(response, "error") and response.error:
+            raise HTTPException(status_code=400, detail=response.error.message)
+
+        return {"message": "Contraseña actualizada correctamente."}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
