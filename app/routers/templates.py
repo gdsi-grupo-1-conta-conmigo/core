@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, Body
 from pydantic import BaseModel, validator, Field as PydanticField
 from supabase import Client
 from uuid import uuid4
@@ -132,6 +132,52 @@ async def delete_template(
             raise HTTPException(status_code=500, detail="Error al eliminar el template")
 
         return {"message": "Template eliminado correctamente"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.put("/{template_id}")
+async def update_template(
+    template_id: str,
+    updated_template: TemplateCreate = Body(...),
+    user_claims: UserClaims = Depends(auth),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """
+    Editar un template existente. Si tiene datos asociados, solo se puede cambiar el nombre.
+    """
+    try:
+        user_id = user_claims.sub
+
+        # Verificar que el template existe y pertenece al usuario
+        result = supabase.table("templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Template no encontrado o no autorizado")
+
+        existing_template = result.data
+
+        # Verificar si tiene datos asociados
+        data_check = supabase.table("template_data").select("id").eq("template_id", template_id).limit(1).execute()
+        has_data = bool(data_check.data)
+
+        updates = {"name": updated_template.name}
+
+        if has_data:
+            if [f.model_dump() for f in updated_template.fields] != existing_template["fields"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se pueden modificar los campos del template porque ya tiene datos asociados"
+                )
+        else:
+            updates["fields"] = [f.model_dump() for f in updated_template.fields]
+
+        update_result = supabase.table("templates").update(updates).eq("id", template_id).execute()
+
+        if not update_result.data:
+            raise HTTPException(status_code=500, detail="Error al actualizar el template")
+
+        return {"message": "Template actualizado correctamente"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
